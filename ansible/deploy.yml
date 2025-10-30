@@ -1,5 +1,5 @@
 ---
-- hosts: deve
+- hosts: develop
   become: yes
   roles:
     - laravel_deploy
