@@ -1,14 +1,4 @@
 ---
-- name: Reset local changes
-  command: git reset --hard
-  args: { chdir: /var/www/laravel-app }
-
-  when: ansible_stat.exists
-- name: Clean untracked files
-  command: git clean -fd
-  args: { chdir: /var/www/laravel-app }
-  when: ansible_stat.exists
-  
 - name: Clone code
   git:
     repo: 'https://github.com/lamcm58/test_deploy_using_jenkins.git'
