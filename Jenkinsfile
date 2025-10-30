@@ -29,7 +29,13 @@ pipeline {
 
         stage('Deploy with Ansible') {
             steps {
-                withCredentials([string(credentialsId: 'ansible-become-pass', variable: 'BECOME_PASS')]) {
+                withCredentials([
+                    string(credentialsId: 'ansible-become-pass', variable: 'BECOME_PASS'),
+                    string(credentialsId: 'db-host', variable: 'DB_HOST'),
+                    string(credentialsId: 'db-name', variable: 'DB_NAME'),
+                    string(credentialsId: 'db-user', variable: 'DB_USER'),
+                    string(credentialsId: 'db-pass', variable: 'DB_PASS')
+                ]) {
                     sh 'ansible-playbook -i ansible/inventory ansible/deploy.yml -v --extra-vars "env=${DEPLOY_ENV} ansible_become_password=${BECOME_PASS}" --limit develop'
                 }
             }

@@ -5,10 +5,14 @@
     dest: /var/www/laravel-app
     version: deve
 
-# - name: Copy .env
-#   template:
-#     src: templates/env.j2
-#     dest: /var/www/laravel-app/.env
+- name: Render application .env securely
+  template:
+    src: templates/env.j2
+    dest: /var/www/laravel-app/.env
+    owner: www-data
+    group: www-data
+    mode: '0640'
+  become: yes
 
 - name: Install composer dependencies
   environment:
