@@ -17,25 +17,19 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                ansiColor('xterm') {
-                    sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
-                }
+                sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
             }
         }
 
         stage('Run Tests') {
             steps {
-                ansiColor('xterm') {
-                    sh 'php artisan test'
-                }
+                sh 'php artisan test'
             }
         }
 
         stage('Deploy with Ansible') {
             steps {
-                ansiColor('xterm') {
-                    sh 'ansible-playbook -i ansible/inventory ansible/deploy.yml -v --extra-vars "env=${DEPLOY_ENV}" --limit develop'
-                }
+                sh 'ansible-playbook -i ansible/inventory ansible/deploy.yml -v --extra-vars "env=${DEPLOY_ENV}" --limit develop'
             }
         }
     }
