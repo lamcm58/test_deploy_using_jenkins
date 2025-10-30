@@ -1,12 +1,19 @@
 ---
+- name: Reset local changes
+  command: git reset --hard
+  args: { chdir: /var/www/laravel-app }
+
+  when: ansible_stat.exists
+- name: Clean untracked files
+  command: git clean -fd
+  args: { chdir: /var/www/laravel-app }
+  when: ansible_stat.exists
+  
 - name: Clone code
   git:
     repo: 'https://github.com/lamcm58/test_deploy_using_jenkins.git'
     dest: /var/www/laravel-app
     version: deve
-    update: yes
-    force: yes
-    single_branch: yes
 
 - name: Render application .env securely
   template:
@@ -29,7 +36,8 @@
 - name: Clear cache
   command: php artisan optimize:clear chdir=/var/www/laravel-app
 
-# - name: Restart PHP-FPM
-#   service:
-#     name: php8.2-fpm
-#     state: restarted
+- name: Restart Apache2
+  service:
+    name: apache2.service
+    state: restarted
+  become: yes
