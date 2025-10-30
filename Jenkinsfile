@@ -18,6 +18,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
+                sh 'php artisan key:generate --ansi'
             }
         }
 
