@@ -11,7 +11,10 @@
 #     dest: /var/www/laravel-app/.env
 
 - name: Install composer dependencies
-  command: composer install --no-dev --optimize-autoloader chdir=/var/www/laravel-app
+  environment:
+    COMPOSER_ALLOW_SUPERUSER: "1"
+    COMPOSER_NO_INTERACTION: "1"
+  command: composer install --no-dev --no-progress --prefer-dist --optimize-autoloader chdir=/var/www/laravel-app
 
 - name: Run migrations
   command: php artisan migrate --force chdir=/var/www/laravel-app
