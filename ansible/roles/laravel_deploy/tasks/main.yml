@@ -1,7 +1,7 @@
 ---
 - name: Clone code
   git:
-    repo: 'git@github.com:lamcm58/test_deploy_using_jenkins.git'
+    repo: 'https://github.com/lamcm58/test_deploy_using_jenkins.git'
     dest: /var/www/laravel-app
     version: deve
 

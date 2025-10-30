@@ -1,5 +1,9 @@
 pipeline {
     agent any
+    options {
+        timestamps()
+        ansiColor('xterm')
+    }
 
     environment {
         DEPLOY_ENV = "local"
@@ -8,9 +12,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                sshagent(['github-ssh']) {
-                    git branch: 'deve', url: 'git@github.com:lamcm58/test_deploy_using_jenkins.git'
-                }
+                git branch: 'deve', url: 'https://github.com/lamcm58/test_deploy_using_jenkins.git'
             }
         }
 
