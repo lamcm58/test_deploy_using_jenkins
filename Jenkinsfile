@@ -2,7 +2,6 @@ pipeline {
     agent any
     options {
         timestamps()
-        ansiColor('xterm')
     }
 
     environment {
@@ -18,19 +17,25 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
+                ansiColor('xterm') {
+                    sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
+                }
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'php artisan test'
+                ansiColor('xterm') {
+                    sh 'php artisan test'
+                }
             }
         }
 
         stage('Deploy with Ansible') {
             steps {
-                sh 'ansible-playbook -i ansible/inventory ansible/deploy.yml -v --extra-vars "env=${DEPLOY_ENV}" --limit develop'
+                ansiColor('xterm') {
+                    sh 'ansible-playbook -i ansible/inventory ansible/deploy.yml -v --extra-vars "env=${DEPLOY_ENV}" --limit develop'
+                }
             }
         }
     }
