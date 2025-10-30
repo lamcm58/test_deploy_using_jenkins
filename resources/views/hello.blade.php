@@ -82,6 +82,8 @@
             <div class="content">
                 <div class="title m-b-md">
                     Hello Laravel
+                    <br/>
+                    <img src="{{ asset('images/taco.png') }}" alt="Laravel">
                 </div>
 
                 <div class="links">
