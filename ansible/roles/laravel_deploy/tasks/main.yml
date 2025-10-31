@@ -2,29 +2,32 @@
 - name: Clone code
   git:
     repo: 'https://github.com/lamcm58/test_deploy_using_jenkins.git'
-    dest: /var/www/laravel-app
-    version: deve
+    dest: "{{ deployment_path }}"
+    version: "{{ git_branch }}"
 
 - name: Render application .env securely
   template:
     src: templates/env.j2
-    dest: /var/www/laravel-app/.env
+    dest: "{{ deployment_path }}/.env"
     owner: www-data
     group: www-data
     mode: '0640'
   become: yes
+  vars:
+    app_env: "{{ app_env }}"
+    app_debug: "{{ app_debug }}"
 
 - name: Install composer dependencies
   environment:
     COMPOSER_ALLOW_SUPERUSER: "1"
     COMPOSER_NO_INTERACTION: "1"
-  command: composer install --no-dev --no-progress --prefer-dist --optimize-autoloader chdir=/var/www/laravel-app
+  command: composer install --no-dev --no-progress --prefer-dist --optimize-autoloader chdir={{ deployment_path }}
 
 - name: Run migrations
-  command: php artisan migrate --force chdir=/var/www/laravel-app
+  command: php artisan migrate --force chdir={{ deployment_path }}
 
 - name: Clear cache
-  command: php artisan optimize:clear chdir=/var/www/laravel-app
+  command: php artisan optimize:clear chdir={{ deployment_path }}
 
 - name: Restart Apache2
   service:

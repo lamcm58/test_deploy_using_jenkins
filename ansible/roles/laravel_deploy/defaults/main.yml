@@ -1,0 +1,30 @@
+---
+# Default deployment path
+deployment_path: /var/www/laravel-app
+
+# Git branch mapping by environment
+git_branches:
+  develop: deve
+  staging: staging
+  production: main
+
+# Get git branch based on environment
+git_branch: "{{ git_branches[env] | default('deve') }}"
+
+# App environment mapping
+app_env_mapping:
+  develop: local
+  staging: staging
+  production: production
+
+# Get app_env based on environment
+app_env: "{{ app_env_mapping[env] | default('local') }}"
+
+# Debug mode by environment
+app_debug_mapping:
+  develop: "true"
+  staging: "true"
+  production: "false"
+
+app_debug: "{{ app_debug_mapping[env] | default('true') }}"
+

@@ -1,2 +1,8 @@
 [develop]
 deve-server ansible_host=192.168.79.100 ansible_user=jenkins
+
+[staging]
+staging-server ansible_host=192.168.79.101 ansible_user=jenkins
+
+[production]
+prod-server ansible_host=192.168.79.102 ansible_user=jenkins

@@ -4,8 +4,16 @@ pipeline {
         timestamps()
     }
 
+    parameters {
+        choice(
+            name: 'DEPLOY_ENV',
+            choices: ['develop', 'staging', 'production'],
+            description: 'Select deployment environment'
+        )
+    }
+
     environment {
-        DEPLOY_ENV = "local"
+        DEPLOY_ENV = "${params.DEPLOY_ENV}"
     }
 
     stages {
@@ -36,7 +44,7 @@ pipeline {
                     string(credentialsId: 'db-user', variable: 'DB_USER'),
                     string(credentialsId: 'db-password', variable: 'DB_PASSWORD')
                 ]) {
-                    sh 'ansible-playbook -i ansible/inventory ansible/deploy.yml -v --extra-vars "env=${DEPLOY_ENV} ansible_become_password=${BECOME_PASS} db_host=${DB_HOST} db_name=${DB_NAME} db_user=${DB_USER} db_password=${DB_PASSWORD}" --limit develop'
+                    sh 'ansible-playbook -i ansible/inventory ansible/deploy.yml -v --extra-vars "env=${DEPLOY_ENV} ansible_become_password=${BECOME_PASS} db_host=${DB_HOST} db_name=${DB_NAME} db_user=${DB_USER} db_password=${DB_PASSWORD}" --limit ${DEPLOY_ENV}'
                 }
             }
         }

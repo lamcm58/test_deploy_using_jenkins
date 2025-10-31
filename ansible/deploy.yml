@@ -1,5 +1,5 @@
 ---
-- hosts: develop
+- hosts: "{{ env }}"
   become: yes
   roles:
     - laravel_deploy
