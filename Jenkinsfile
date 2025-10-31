@@ -31,14 +31,19 @@ pipeline {
 
         stage('Deploy with Ansible') {
             steps {
-                withCredentials([
-                    string(credentialsId: 'ansible-become-pass', variable: 'BECOME_PASS'),
-                    string(credentialsId: 'db-host', variable: 'DB_HOST'),
-                    string(credentialsId: 'db-name', variable: 'DB_NAME'),
-                    string(credentialsId: 'db-user', variable: 'DB_USER'),
-                    string(credentialsId: 'db-password', variable: 'DB_PASSWORD')
-                ]) {
-                    sh 'ansible-playbook -i ansible/inventory ansible/deploy.yml -v --extra-vars "env=${DEPLOY_ENV} ansible_become_password=${BECOME_PASS} db_host=${DB_HOST} db_name=${DB_NAME} db_user=${DB_USER} db_password=${DB_PASSWORD}" --limit ${DEPLOY_ENV}'
+                script {
+                    // Use Ansible Vault instead of passing secrets via command line
+                    withCredentials([
+                        string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
+                    ]) {
+                        sh '''
+                            export ANSIBLE_VAULT_PASSWORD="${VAULT_PASS}"
+                            ansible-playbook -i ansible/inventory ansible/deploy.yml \
+                                --vault-password-file ansible/vault_password.sh \
+                                --extra-vars "env=${DEPLOY_ENV}" \
+                                --limit ${DEPLOY_ENV}
+                        '''
+                    }
                 }
             }
         }
