@@ -7,8 +7,8 @@ pipeline {
     parameters {
         choice(
             name: 'DEPLOY_ENV',
-            choices: ['develop', 'staging', 'production'],
-            description: 'Select deployment environment'
+            choices: ['--- Select Environment ---', 'develop', 'staging', 'production'],
+            description: 'Select deployment environment (required)'
         )
     }
 
@@ -17,6 +17,23 @@ pipeline {
     }
 
     stages {
+        stage('Validate Parameters') {
+            steps {
+                script {
+                    if (!params.DEPLOY_ENV || params.DEPLOY_ENV.trim() == '' || params.DEPLOY_ENV == '--- Select Environment ---') {
+                        error("❌ DEPLOY_ENV parameter is required! Please select an environment (develop/staging/production). Deployment stopped.")
+                    }
+                    echo "✅ Selected environment: ${params.DEPLOY_ENV}"
+                }
+            }
+        }
+
+        stage('Display Parameters') {
+            steps {
+                echo "🚀 Deploying to environment: ${params.DEPLOY_ENV}"
+            }
+        }
+
         stage('Checkout') {
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
