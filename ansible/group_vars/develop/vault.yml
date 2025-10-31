@@ -1,0 +1,14 @@
+$ANSIBLE_VAULT;1.1;AES256
+# Example vault file - encrypt using: ansible-vault encrypt group_vars/develop/vault.yml
+# Replace this with actual encrypted content
+# 
+# To create this file:
+# 1. Create unencrypted version first:
+#    db_host: localhost
+#    db_name: laravel_dev
+#    db_user: dev_user
+#    db_password: dev_password
+# 
+# 2. Encrypt it: ansible-vault encrypt group_vars/develop/vault.yml
+# 3. Enter vault password when prompted
+

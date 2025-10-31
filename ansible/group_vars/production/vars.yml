@@ -1,0 +1,6 @@
+---
+# Non-sensitive variables for production environment
+app_url: https://production.example.com
+app_env: production
+app_debug: "false"
+

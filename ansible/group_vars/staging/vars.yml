@@ -1,0 +1,6 @@
+---
+# Non-sensitive variables for staging environment
+app_url: http://staging.example.com
+app_env: staging
+app_debug: "true"
+

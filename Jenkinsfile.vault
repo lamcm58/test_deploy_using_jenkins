@@ -1,0 +1,70 @@
+pipeline {
+    agent any
+    options {
+        timestamps()
+    }
+
+    parameters {
+        choice(
+            name: 'DEPLOY_ENV',
+            choices: ['develop', 'staging', 'production'],
+            description: 'Select deployment environment (required)',
+            defaultValue: 'develop'
+        )
+    }
+
+    environment {
+        DEPLOY_ENV = "${params.DEPLOY_ENV ?: 'develop'}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    git branch: 'deve', url: 'https://github.com/lamcm58/test_deploy_using_jenkins.git'
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh 'php artisan test'
+            }
+        }
+
+        stage('Deploy with Ansible') {
+            steps {
+                script {
+                    // Use Ansible Vault instead of passing secrets via command line
+                    withCredentials([
+                        string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
+                    ]) {
+                        sh '''
+                            export ANSIBLE_VAULT_PASSWORD="${VAULT_PASS}"
+                            ansible-playbook -i ansible/inventory ansible/deploy.yml \
+                                --vault-password-file ansible/vault_password.sh \
+                                --extra-vars "env=${DEPLOY_ENV}" \
+                                --limit ${DEPLOY_ENV}
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Deployment successful!"
+        }
+        failure {
+            echo "❌ Deployment failed!"
+        }
+    }
+}
+
