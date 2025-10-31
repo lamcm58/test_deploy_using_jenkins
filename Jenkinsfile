@@ -20,10 +20,21 @@ pipeline {
         stage('Validate Parameters') {
             steps {
                 script {
+                    echo "🔍 Validating deployment parameters..."
+                    echo "   DEPLOY_ENV received: '${params.DEPLOY_ENV}'"
+                    
+                    // Check if parameter is missing or invalid
                     if (!params.DEPLOY_ENV || params.DEPLOY_ENV.trim() == '' || params.DEPLOY_ENV == '--- Select Environment ---') {
                         error("❌ DEPLOY_ENV parameter is required! Please select an environment (develop/staging/production). Deployment stopped.")
                     }
-                    echo "✅ Selected environment: ${params.DEPLOY_ENV}"
+                    
+                    // Validate environment value
+                    def validEnvironments = ['develop', 'staging', 'production']
+                    if (!validEnvironments.contains(params.DEPLOY_ENV)) {
+                        error("❌ Invalid environment '${params.DEPLOY_ENV}'. Must be one of: ${validEnvironments.join(', ')}")
+                    }
+                    
+                    echo "✅ Validation passed! Selected environment: ${params.DEPLOY_ENV}"
                 }
             }
         }
