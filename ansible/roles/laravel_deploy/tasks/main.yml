@@ -13,9 +13,6 @@
     group: www-data
     mode: '0640'
   become: yes
-  vars:
-    app_env: "{{ app_env }}"
-    app_debug: "{{ app_debug }}"
 
 - name: Install composer dependencies
   environment:
