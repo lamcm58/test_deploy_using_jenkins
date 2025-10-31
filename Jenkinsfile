@@ -4,47 +4,11 @@ pipeline {
         timestamps()
     }
 
-    parameters {
-        choice(
-            name: 'DEPLOY_ENV',
-            choices: ['develop', 'staging', 'production'],
-            description: 'Select deployment environment (required)'
-        )
-    }
-
     environment {
-        DEPLOY_ENV = "${params.DEPLOY_ENV}"
+        DEPLOY_ENV = "develop"
     }
 
     stages {
-        stage('Validate Parameters') {
-            steps {
-                script {
-                    echo "🔍 Validating deployment parameters..."
-                    echo "   DEPLOY_ENV received: '${params.DEPLOY_ENV}'"
-                    
-                    // Check if parameter is missing or invalid
-                    if (!params.DEPLOY_ENV || params.DEPLOY_ENV.trim() == '') {
-                        error("❌ DEPLOY_ENV parameter is required! Please select an environment (develop/staging/production). Deployment stopped.")
-                    }
-                    
-                    // Validate environment value
-                    def validEnvironments = ['develop', 'staging', 'production']
-                    if (!validEnvironments.contains(params.DEPLOY_ENV)) {
-                        error("❌ Invalid environment '${params.DEPLOY_ENV}'. Must be one of: ${validEnvironments.join(', ')}")
-                    }
-                    
-                    echo "✅ Validation passed! Selected environment: ${params.DEPLOY_ENV}"
-                }
-            }
-        }
-
-        stage('Display Parameters') {
-            steps {
-                echo "🚀 Deploying to environment: ${params.DEPLOY_ENV}"
-            }
-        }
-
         stage('Checkout') {
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
