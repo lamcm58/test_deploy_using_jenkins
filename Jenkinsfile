@@ -7,8 +7,9 @@ pipeline {
     parameters {
         choice(
             name: 'DEPLOY_ENV',
-            choices: ['--- Select Environment ---', 'develop', 'staging', 'production'],
-            description: 'Select deployment environment (required)'
+            choices: ['develop', 'staging', 'production'],
+            description: 'Select deployment environment (required)',
+            defaultValue: 'develop'
         )
     }
 
@@ -24,7 +25,7 @@ pipeline {
                     echo "   DEPLOY_ENV received: '${params.DEPLOY_ENV}'"
                     
                     // Check if parameter is missing or invalid
-                    if (!params.DEPLOY_ENV || params.DEPLOY_ENV.trim() == '' || params.DEPLOY_ENV == '--- Select Environment ---') {
+                    if (!params.DEPLOY_ENV || params.DEPLOY_ENV.trim() == '') {
                         error("❌ DEPLOY_ENV parameter is required! Please select an environment (develop/staging/production). Deployment stopped.")
                     }
                     
