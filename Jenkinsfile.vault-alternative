@@ -32,25 +32,24 @@ pipeline {
         stage('Deploy with Ansible') {
             steps {
                 script {
-                    // Use Ansible Vault instead of passing secrets via command line
+                    // Alternative: Use inline vault password via stdin
                     withCredentials([
                         string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
                     ]) {
                         sh '''
-                            # Make vault password script executable
-                            chmod +x ansible/vault_password.sh
+                            # Create temporary script that echoes password
+                            echo '#!/bin/bash' > /tmp/vault_pass.sh
+                            echo "echo '${VAULT_PASS}'" >> /tmp/vault_pass.sh
+                            chmod +x /tmp/vault_pass.sh
                             
-                            # Export vault password for the script to use
-                            export ANSIBLE_VAULT_PASSWORD="${VAULT_PASS}"
-                            
-                            # Debug: Check if password is set (remove in production)
-                            echo "🔐 Vault password is set: ${ANSIBLE_VAULT_PASSWORD:+YES}"
-                            
-                            # Run ansible-playbook with vault password
+                            # Run ansible-playbook
                             ansible-playbook -i ansible/inventory ansible/deploy.yml \
-                                --vault-password-file ansible/vault_password.sh \
+                                --vault-password-file /tmp/vault_pass.sh \
                                 --extra-vars "env=${DEPLOY_ENV}" \
                                 --limit ${DEPLOY_ENV}
+                            
+                            # Cleanup
+                            rm -f /tmp/vault_pass.sh
                         '''
                     }
                 }
@@ -67,3 +66,4 @@ pipeline {
         }
     }
 }
+
