@@ -13,6 +13,13 @@
     mode: '0644'
   become: yes
 
+- name: Ensure extracted directory exists
+  file:
+    path: "{{ deploy_temp_path }}/extracted"
+    state: directory
+    mode: '0755'
+  become: yes
+
 - name: Extract deployment package to temporary directory
   unarchive:
     src: "{{ deploy_temp_path }}/{{ deploy_package }}"
