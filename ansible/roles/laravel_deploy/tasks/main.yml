@@ -1,9 +1,99 @@
 ---
-- name: Clone code
-  git:
-    repo: 'https://github.com/lamcm58/test_deploy_using_jenkins.git'
-    dest: "{{ deployment_path }}"
-    version: "{{ git_branch }}"
+- name: Ensure deployment temporary directory exists
+  file:
+    path: "{{ deploy_temp_path }}"
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Copy deployment package to server
+  copy:
+    src: "{{ deploy_package }}"
+    dest: "{{ deploy_temp_path }}/{{ deploy_package }}"
+    mode: '0644'
+  become: yes
+
+- name: Extract deployment package to temporary directory
+  unarchive:
+    src: "{{ deploy_temp_path }}/{{ deploy_package }}"
+    dest: "{{ deploy_temp_path }}/extracted"
+    remote_src: yes
+    creates: "{{ deploy_temp_path }}/extracted/composer.json"
+  become: yes
+
+- name: Backup current .env if exists (for rollback if needed)
+  copy:
+    src: "{{ deployment_path }}/.env"
+    dest: "{{ deploy_temp_path }}/.env.backup"
+    remote_src: yes
+  become: yes
+  ignore_errors: yes
+  when: deployment_path is defined
+
+- name: Remove existing deployment path content
+  shell: |
+    # Remove all files and directories except keep .env for now
+    find {{ deployment_path }} -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +
+  become: yes
+  ignore_errors: yes
+
+- name: Copy extracted code to deployment path
+  copy:
+    src: "{{ deploy_temp_path }}/extracted/"
+    dest: "{{ deployment_path }}/"
+    owner: www-data
+    group: www-data
+    mode: '0755'
+    remote_src: yes
+  become: yes
+
+- name: Set proper ownership and permissions
+  file:
+    path: "{{ deployment_path }}"
+    owner: www-data
+    group: www-data
+    recurse: yes
+    mode: '0755'
+  become: yes
+
+- name: Ensure storage directories exist with proper permissions
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0775'
+  become: yes
+  loop:
+    - "{{ deployment_path }}/storage/app/public"
+    - "{{ deployment_path }}/storage/framework/cache"
+    - "{{ deployment_path }}/storage/framework/sessions"
+    - "{{ deployment_path }}/storage/framework/views"
+    - "{{ deployment_path }}/storage/logs"
+  when: item is defined
+
+- name: Ensure bootstrap/cache directory exists with proper permissions
+  file:
+    path: "{{ deployment_path }}/bootstrap/cache"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0775'
+  become: yes
+
+- name: Clean up deployment package
+  file:
+    path: "{{ deploy_temp_path }}/{{ deploy_package }}"
+    state: absent
+  become: yes
+  ignore_errors: yes
+
+- name: Clean up extracted directory
+  file:
+    path: "{{ deploy_temp_path }}/extracted"
+    state: absent
+  become: yes
+  ignore_errors: yes
 
 - name: Render application .env securely
   template:
@@ -14,11 +104,18 @@
     mode: '0640'
   become: yes
 
-- name: Install composer dependencies
+- name: Check if vendor directory exists
+  stat:
+    path: "{{ deployment_path }}/vendor"
+  register: vendor_dir
+
+- name: Install composer dependencies (only if vendor not found)
   environment:
     COMPOSER_ALLOW_SUPERUSER: "1"
     COMPOSER_NO_INTERACTION: "1"
   command: composer install --no-dev --no-progress --prefer-dist --optimize-autoloader chdir={{ deployment_path }}
+  when: not vendor_dir.stat.exists
+  ignore_errors: yes
 
 - name: Run migrations
   command: php artisan migrate --force chdir={{ deployment_path }}
