@@ -6,6 +6,65 @@
     mode: '0755'
   become: yes
 
+- name: Ensure rollback backup directory exists
+  file:
+    path: "{{ rollback_backup_path }}"
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Check if current deployment exists
+  stat:
+    path: "{{ deployment_path }}"
+  register: current_deployment
+  become: yes
+
+- name: Get current deployment version info
+  shell: |
+    if [ -f {{ deployment_path }}/.deployment_version ]; then
+      cat {{ deployment_path }}/.deployment_version
+    else
+      echo "unknown"
+    fi
+  register: current_version
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: current_deployment.stat.exists
+
+- name: Create backup of current deployment before new deployment
+  shell: |
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_NAME="backup_${TIMESTAMP}"
+    BACKUP_PATH="{{ rollback_backup_path }}/${BACKUP_NAME}"
+    
+    # Create backup directory
+    mkdir -p "${BACKUP_PATH}"
+    
+    # Copy entire deployment directory
+    if [ -d {{ deployment_path }} ]; then
+      cp -a {{ deployment_path }}/* "${BACKUP_PATH}/" 2>/dev/null || true
+      cp -a {{ deployment_path }}/.[^.]* "${BACKUP_PATH}/" 2>/dev/null || true
+      
+      # Save version info
+      echo "{{ deploy_package }}" > "${BACKUP_PATH}/.backup_version"
+      echo "${TIMESTAMP}" > "${BACKUP_PATH}/.backup_timestamp"
+      
+      echo "${BACKUP_NAME}"
+    else
+      echo "no_backup"
+    fi
+  register: backup_result
+  changed_when: backup_result.stdout != "no_backup"
+  failed_when: false
+  become: yes
+  when: current_deployment.stat.exists
+
+- name: Display backup information
+  debug:
+    msg: "Backup created: {{ backup_result.stdout }}"
+  when: backup_result.stdout != "no_backup" and backup_result.stdout != ""
+
 - name: Copy deployment package to server
   copy:
     src: "{{ deploy_package_path if (deploy_package_path is defined and deploy_package_path != '') else deploy_package }}"
@@ -151,14 +210,122 @@
   when: not vendor_dir.stat.exists
   ignore_errors: yes
 
-- name: Run migrations
-  command: php artisan migrate --force chdir={{ deployment_path }}
+- name: Deploy new version (with rollback on failure)
+  block:
+    - name: Run migrations
+      command: php artisan migrate --force chdir={{ deployment_path }}
 
-- name: Clear cache
-  command: php artisan optimize:clear chdir={{ deployment_path }}
+    - name: Clear cache
+      command: php artisan optimize:clear chdir={{ deployment_path }}
 
-- name: Restart Apache2
-  service:
-    name: apache2.service
-    state: restarted
-  become: yes
+    - name: Restart Apache2
+      service:
+        name: apache2.service
+        state: restarted
+      become: yes
+
+    - name: Verify deployment success
+      shell: |
+        # Simple health check - verify Laravel can run
+        php {{ deployment_path }}/artisan --version
+      register: health_check
+      changed_when: false
+      become: yes
+
+    - name: Save deployment version info (only on success)
+      copy:
+        content: "{{ deploy_package }}\n{{ ansible_date_time.epoch }}"
+        dest: "{{ deployment_path }}/.deployment_version"
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      become: yes
+
+  rescue:
+    - name: Deployment failed - Starting rollback
+      debug:
+        msg: "❌ Deployment failed! Rolling back to previous version..."
+
+    - name: Get latest backup
+      shell: |
+        if [ -d {{ rollback_backup_path }} ]; then
+          ls -td {{ rollback_backup_path }}/backup_* 2>/dev/null | head -1
+        else
+          echo ""
+        fi
+      register: latest_backup
+      changed_when: false
+      failed_when: false
+      become: yes
+
+    - name: Rollback to previous version
+      shell: |
+        if [ -n "{{ latest_backup.stdout }}" ] && [ -d "{{ latest_backup.stdout }}" ]; then
+          # Backup current failed deployment
+          FAILED_BACKUP="{{ rollback_backup_path }}/failed_$(date +%Y%m%d_%H%M%S)"
+          mkdir -p "${FAILED_BACKUP}"
+          if [ -d {{ deployment_path }} ]; then
+            cp -a {{ deployment_path }}/* "${FAILED_BACKUP}/" 2>/dev/null || true
+            cp -a {{ deployment_path }}/.[^.]* "${FAILED_BACKUP}/" 2>/dev/null || true
+          fi
+          
+          # Restore from backup
+          rm -rf {{ deployment_path }}/*
+          rm -rf {{ deployment_path }}/.[^.]*
+          cp -a {{ latest_backup.stdout }}/* {{ deployment_path }}/ 2>/dev/null || true
+          cp -a {{ latest_backup.stdout }}/.[^.]* {{ deployment_path }}/ 2>/dev/null || true
+          
+          # Restore permissions
+          chown -R www-data:www-data {{ deployment_path }}
+          find {{ deployment_path }} -type d -exec chmod 755 {} \;
+          find {{ deployment_path }} -type f -exec chmod 644 {} \;
+          chmod 640 {{ deployment_path }}/.env 2>/dev/null || true
+          
+          echo "restored"
+        else
+          echo "no_backup_found"
+        fi
+      register: rollback_result
+      become: yes
+      failed_when: rollback_result.stdout == "no_backup_found"
+
+    - name: Restart Apache2 after rollback
+      service:
+        name: apache2.service
+        state: restarted
+      become: yes
+
+    - name: Display rollback result
+      debug:
+        msg: "{{ '✅ Rollback successful to previous version' if rollback_result.stdout == 'restored' else '❌ Rollback failed - no backup found' }}"
+
+    - name: Fail the playbook after rollback
+      fail:
+        msg: "Deployment failed and rollback completed. Please check the logs and fix issues before redeploying."
+
+  always:
+    - name: Cleanup old backups (keep only recent ones)
+      shell: |
+        if [ -d {{ rollback_backup_path }} ]; then
+          # Count total backups
+          BACKUP_COUNT=$(ls -d {{ rollback_backup_path }}/backup_* 2>/dev/null | wc -l)
+          
+          if [ "$BACKUP_COUNT" -gt {{ rollback_keep_backups }} ]; then
+            # Get backups sorted by time (oldest first) and remove excess
+            ls -td {{ rollback_backup_path }}/backup_* 2>/dev/null | tail -n +$(({{ rollback_keep_backups }} + 1)) | xargs rm -rf
+            echo "cleaned"
+          else
+            echo "no_cleanup_needed"
+          fi
+        else
+          echo "no_backup_dir"
+        fi
+      register: cleanup_result
+      changed_when: cleanup_result.stdout == "cleaned"
+      failed_when: false
+      become: yes
+
+    - name: Display cleanup result
+      debug:
+        msg: "{{ 'Old backups cleaned up' if cleanup_result.stdout == 'cleaned' else 'No cleanup needed' }}"
+      when: cleanup_result is defined

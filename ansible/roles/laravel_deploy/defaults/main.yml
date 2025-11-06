@@ -5,6 +5,12 @@ deployment_path: /var/www/laravel-app
 # Temporary directory for deployment package
 deploy_temp_path: /tmp/laravel-deploy
 
+# Rollback backup directory
+rollback_backup_path: /var/www/laravel-app-backups
+
+# Number of backups to keep (older backups will be deleted)
+rollback_keep_backups: 5
+
 # Deployment package filename (will be passed from Jenkins)
 deploy_package: "{{ deploy_package | default('laravel-app.zip') }}"
 
