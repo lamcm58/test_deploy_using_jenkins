@@ -78,13 +78,18 @@ pipeline {
                             # Export vault password for the script to use
                             export ANSIBLE_VAULT_PASSWORD="${VAULT_PASS}"
                             
+                            # Get absolute path to deployment package
+                            DEPLOY_PACKAGE_PATH=$(pwd)/${DEPLOY_PACKAGE}
+                            
                             # Debug: Check if password is set (remove in production)
                             echo "🔐 Vault password is set: ${ANSIBLE_VAULT_PASSWORD:+YES}"
+                            echo "📦 Deployment package path: ${DEPLOY_PACKAGE_PATH}"
+                            ls -lh ${DEPLOY_PACKAGE_PATH} || echo "❌ Package file not found!"
                             
                             # Run ansible-playbook with vault password and package path
                             ansible-playbook -i ansible/inventory ansible/deploy.yml \
                                 --vault-password-file ansible/vault_password.sh \
-                                --extra-vars "env=${DEPLOY_ENV} deploy_package=${DEPLOY_PACKAGE}" \
+                                --extra-vars "env=${DEPLOY_ENV} deploy_package=${DEPLOY_PACKAGE} deploy_package_path=${DEPLOY_PACKAGE_PATH}" \
                                 --limit ${DEPLOY_ENV}
                         '''
                     }

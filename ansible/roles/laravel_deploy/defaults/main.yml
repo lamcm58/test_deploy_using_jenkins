@@ -8,6 +8,9 @@ deploy_temp_path: /tmp/laravel-deploy
 # Deployment package filename (will be passed from Jenkins)
 deploy_package: "{{ deploy_package | default('laravel-app.zip') }}"
 
+# Full path to deployment package on Jenkins server (will be passed from Jenkins)
+deploy_package_path: "{{ deploy_package_path | default('') }}"
+
 # Git branch mapping by environment (kept for reference, not used in zip deployment)
 git_branches:
   develop: deve

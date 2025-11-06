@@ -8,7 +8,7 @@
 
 - name: Copy deployment package to server
   copy:
-    src: "{{ deploy_package }}"
+    src: "{{ deploy_package_path if (deploy_package_path is defined and deploy_package_path != '') else deploy_package }}"
     dest: "{{ deploy_temp_path }}/{{ deploy_package }}"
     mode: '0644'
   become: yes
