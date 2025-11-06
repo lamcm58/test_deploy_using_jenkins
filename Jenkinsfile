@@ -37,13 +37,22 @@ pipeline {
                     def version = "${BUILD_NUMBER}_${timestamp}"
                     env.DEPLOY_PACKAGE = "laravel-app-${version}.zip"
                     
+                    // Create packages directory outside workspace
+                    env.PACKAGES_DIR = "${WORKSPACE}/../packages"
+                    env.DEPLOY_PACKAGE_PATH = "${PACKAGES_DIR}/${DEPLOY_PACKAGE}"
+                    
                     sh '''
+                        # Create packages directory outside workspace
+                        mkdir -p ${PACKAGES_DIR}
+                        
                         # Create deployment package
                         echo "📦 Creating deployment package: ${DEPLOY_PACKAGE}"
+                        echo "📁 Package location: ${DEPLOY_PACKAGE_PATH}"
                         
-                        # Exclude unnecessary files from deployment
+                        # Create zip file outside workspace
                         # Note: vendor directory is included to avoid composer install on server
-                        zip -r ${DEPLOY_PACKAGE} . \
+                        cd ${WORKSPACE}
+                        zip -r ${DEPLOY_PACKAGE_PATH} . \
                             -x "*.git*" \
                             -x "*node_modules*" \
                             -x "*tests*" \
@@ -55,10 +64,11 @@ pipeline {
                             -x "*vendor/*/.git*" \
                             -x "*.DS_Store*" \
                             -x "*Jenkinsfile*" \
-                            -x "*ansible/*"
+                            -x "*ansible/*" \
+                            -x "../packages/*"
                         
-                        echo "✅ Package created: ${DEPLOY_PACKAGE}"
-                        ls -lh ${DEPLOY_PACKAGE}
+                        echo "✅ Package created: ${DEPLOY_PACKAGE_PATH}"
+                        ls -lh ${DEPLOY_PACKAGE_PATH}
                     '''
                 }
             }
@@ -77,9 +87,6 @@ pipeline {
                             
                             # Export vault password for the script to use
                             export ANSIBLE_VAULT_PASSWORD="${VAULT_PASS}"
-                            
-                            # Get absolute path to deployment package
-                            DEPLOY_PACKAGE_PATH=$(pwd)/${DEPLOY_PACKAGE}
                             
                             # Debug: Check if password is set (remove in production)
                             echo "🔐 Vault password is set: ${ANSIBLE_VAULT_PASSWORD:+YES}"
@@ -101,9 +108,15 @@ pipeline {
     post {
         success {
             echo "✅ Deployment successful!"
+            // Optional: Clean up package file after successful deployment
+            // sh "rm -f ${DEPLOY_PACKAGE_PATH} || true"
         }
         failure {
             echo "❌ Deployment failed!"
+        }
+        always {
+            // Optional: Clean up package file (uncomment if you want to remove after each build)
+            sh "rm -f ${DEPLOY_PACKAGE_PATH} || true"
         }
     }
 }
