@@ -20,6 +20,15 @@
                 margin: 0;
             }
 
+            body {
+                background-image: url('images/background.jpg');
+                background-repeat: no-repeat;
+                background-position: center center;
+                background-size: cover;
+                background-attachment: fixed;
+                background-color: #f0f0f0; /* Always set a fallback background color */
+            }
+
             .full-height {
                 height: 100vh;
             }
@@ -82,8 +91,6 @@
             <div class="content">
                 <div class="title m-b-md">
                     Laravel
-                    <br/>
-                    <img src="{{ asset('images/taco.png') }}" alt="Laravel">
                 </div>
 
                 <div class="links">
