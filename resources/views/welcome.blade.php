@@ -20,14 +20,14 @@
                 margin: 0;
             }
 
-            body {
+            /* body {
                 background-image: url('images/background.jpg');
                 background-repeat: no-repeat;
                 background-position: center center;
                 background-size: cover;
                 background-attachment: fixed;
                 background-color: #f0f0f0; /* Always set a fallback background color */
-            }
+            } */
 
             .full-height {
                 height: 100vh;
