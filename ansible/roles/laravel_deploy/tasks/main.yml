@@ -111,6 +111,33 @@
     mode: '0640'
   become: yes
 
+- name: Check if APP_KEY exists and has value in .env
+  shell: |
+    if grep -qE "^APP_KEY=" {{ deployment_path }}/.env; then
+      KEY_VALUE=$(grep -E "^APP_KEY=" {{ deployment_path }}/.env | cut -d '=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+      if [ -z "$KEY_VALUE" ] || [ "$KEY_VALUE" = "null" ] || [ "$KEY_VALUE" = "" ]; then
+        echo "empty"
+      else
+        echo "exists"
+      fi
+    else
+      echo "not_found"
+    fi
+  register: app_key_check
+  changed_when: false
+  failed_when: false
+  become: yes
+
+- name: Generate APP_KEY if not set or empty
+  command: php artisan key:generate --force chdir={{ deployment_path }}
+  become: yes
+  when: app_key_check.stdout == "empty" or app_key_check.stdout == "not_found"
+  register: key_generate_result
+
+- name: Display key generation result
+  debug:
+    msg: "{{ 'APP_KEY generated successfully' if (app_key_check.stdout == 'empty' or app_key_check.stdout == 'not_found') else 'APP_KEY already exists, skipping generation' }}"
+
 - name: Check if vendor directory exists
   stat:
     path: "{{ deployment_path }}/vendor"
