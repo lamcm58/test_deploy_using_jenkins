@@ -4,11 +4,29 @@ pipeline {
         timestamps()
     }
 
+    parameters {
+        choice(
+            name: 'DEPLOY_ENV',
+            choices: ['develop', 'staging', 'production'],
+            description: 'Select deployment environment'
+        )
+    }
+
     environment {
-        DEPLOY_ENV = "develop"
+        DEPLOY_ENV = "${params.DEPLOY_ENV ?: 'develop'}"
     }
 
     stages {
+        stage('Display Deployment Info') {
+            steps {
+                script {
+                    echo "Starting deployment to: ${DEPLOY_ENV}"
+                    echo "Build Number: ${BUILD_NUMBER}"
+                    echo "Git Branch: ${env.GIT_BRANCH ?: 'N/A'}"
+                }
+            }
+        }
+
         stage('Checkout') {
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
@@ -46,8 +64,8 @@ pipeline {
                         mkdir -p ${PACKAGES_DIR}
                         
                         # Create deployment package
-                        echo "📦 Creating deployment package: ${DEPLOY_PACKAGE}"
-                        echo "📁 Package location: ${DEPLOY_PACKAGE_PATH}"
+                        echo "Creating deployment package: ${DEPLOY_PACKAGE}"
+                        echo "Package location: ${DEPLOY_PACKAGE_PATH}"
                         
                         # Create zip file outside workspace
                         # Note: vendor directory is included to avoid composer install on server
@@ -67,7 +85,7 @@ pipeline {
                             -x "*ansible/*" \
                             -x "../packages/*"
                         
-                        echo "✅ Package created: ${DEPLOY_PACKAGE_PATH}"
+                        echo "Package created: ${DEPLOY_PACKAGE_PATH}"
                         ls -lh ${DEPLOY_PACKAGE_PATH}
                     '''
                 }
@@ -89,9 +107,10 @@ pipeline {
                             export ANSIBLE_VAULT_PASSWORD="${VAULT_PASS}"
                             
                             # Debug: Check if password is set (remove in production)
-                            echo "🔐 Vault password is set: ${ANSIBLE_VAULT_PASSWORD:+YES}"
-                            echo "📦 Deployment package path: ${DEPLOY_PACKAGE_PATH}"
-                            ls -lh ${DEPLOY_PACKAGE_PATH} || echo "❌ Package file not found!"
+                            echo "Vault password is set: ${ANSIBLE_VAULT_PASSWORD:+YES}"
+                            echo "Deployment environment: ${DEPLOY_ENV}"
+                            echo "Deployment package path: ${DEPLOY_PACKAGE_PATH}"
+                            ls -lh ${DEPLOY_PACKAGE_PATH} || echo "Package file not found!"
                             
                             # Run ansible-playbook with vault password and package path
                             ansible-playbook -i ansible/inventory ansible/deploy.yml \
@@ -107,12 +126,12 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment successful!"
+            echo "Deployment successful to ${DEPLOY_ENV}!"
             // Optional: Clean up package file after successful deployment
             // sh "rm -f ${DEPLOY_PACKAGE_PATH} || true"
         }
         failure {
-            echo "❌ Deployment failed!"
+            echo "Deployment failed to ${DEPLOY_ENV}!"
         }
         always {
             // Optional: Clean up package file (uncomment if you want to remove after each build)
