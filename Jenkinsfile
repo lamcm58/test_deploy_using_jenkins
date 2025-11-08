@@ -159,6 +159,35 @@ pipeline {
         stage('Deploy with Ansible') {
             steps {
                 script {
+                    // Find ansible-playbook path
+                    def ansiblePlaybookPath = sh(
+                        script: '''
+                            # Try to find ansible-playbook in common locations
+                            if command -v ansible-playbook &> /dev/null; then
+                                command -v ansible-playbook
+                            elif [ -f /usr/local/bin/ansible-playbook ]; then
+                                echo /usr/local/bin/ansible-playbook
+                            elif [ -f /usr/bin/ansible-playbook ]; then
+                                echo /usr/bin/ansible-playbook
+                            elif [ -f /opt/homebrew/bin/ansible-playbook ]; then
+                                echo /opt/homebrew/bin/ansible-playbook
+                            elif [ -f ~/.local/bin/ansible-playbook ]; then
+                                echo ~/.local/bin/ansible-playbook
+                            else
+                                # Try to find it using which or whereis
+                                which ansible-playbook 2>/dev/null || whereis -b ansible-playbook 2>/dev/null | awk '{print $2}' | head -1
+                            fi
+                        ''',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (!ansiblePlaybookPath || ansiblePlaybookPath.isEmpty()) {
+                        error("ansible-playbook not found. Please ensure Ansible is installed. You can install it with: pip3 install ansible")
+                    }
+                    
+                    echo "Found ansible-playbook at: ${ansiblePlaybookPath}"
+                    sh "${ansiblePlaybookPath} --version"
+                    
                     // Verify deployment package exists
                     if (!env.DEPLOY_PACKAGE_PATH) {
                         error("DEPLOY_PACKAGE_PATH is not set. Please ensure 'Create Deployment Package' stage completed successfully.")
@@ -174,11 +203,16 @@ pipeline {
                         error("Deployment package not found at: ${env.DEPLOY_PACKAGE_PATH}")
                     }
                     
+                    // Update PATH to include common locations
+                    def updatedPath = "/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/php@8.2/bin:~/.local/bin:${env.PATH}"
+                    
                     // Use Ansible Vault instead of passing secrets via command line
                     withCredentials([
                         string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
                     ]) {
-                        sh '''
+                        sh """
+                            export PATH="${updatedPath}"
+                            
                             # Make vault password script executable
                             chmod +x ansible/vault_password.sh
                             
@@ -186,18 +220,18 @@ pipeline {
                             export ANSIBLE_VAULT_PASSWORD="${VAULT_PASS}"
                             
                             # Debug: Check if password is set (remove in production)
-                            echo "Vault password is set: ${ANSIBLE_VAULT_PASSWORD:+YES}"
+                            echo "Vault password is set: \${ANSIBLE_VAULT_PASSWORD:+YES}"
                             echo "Deployment environment: ${DEPLOY_ENV}"
-                            echo "Deployment package: ${DEPLOY_PACKAGE}"
-                            echo "Deployment package path: ${DEPLOY_PACKAGE_PATH}"
-                            ls -lh ${DEPLOY_PACKAGE_PATH} || echo "Package file not found!"
+                            echo "Deployment package: ${env.DEPLOY_PACKAGE}"
+                            echo "Deployment package path: ${env.DEPLOY_PACKAGE_PATH}"
+                            ls -lh ${env.DEPLOY_PACKAGE_PATH} || echo "Package file not found!"
                             
                             # Run ansible-playbook with vault password and package path
-                            ansible-playbook -i ansible/inventory ansible/deploy.yml \
-                                --vault-password-file ansible/vault_password.sh \
-                                --extra-vars "env=${DEPLOY_ENV} deploy_package=${DEPLOY_PACKAGE} deploy_package_path=${DEPLOY_PACKAGE_PATH}" \
+                            ${ansiblePlaybookPath} -i ansible/inventory ansible/deploy.yml \\
+                                --vault-password-file ansible/vault_password.sh \\
+                                --extra-vars "env=${DEPLOY_ENV} deploy_package=${env.DEPLOY_PACKAGE} deploy_package_path=${env.DEPLOY_PACKAGE_PATH}" \\
                                 --limit ${DEPLOY_ENV}
-                        '''
+                        """
                     }
                 }
             }
