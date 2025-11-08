@@ -14,6 +14,7 @@ pipeline {
 
     environment {
         DEPLOY_ENV = "${params.DEPLOY_ENV ?: 'develop'}"
+        PACKAGES_DIR = "${WORKSPACE}/../packages"
     }
 
     stages {
@@ -54,10 +55,7 @@ pipeline {
                     def timestamp = sh(script: 'date +%Y%m%d_%H%M%S', returnStdout: true).trim()
                     def version = "${BUILD_NUMBER}_${timestamp}"
                     env.DEPLOY_PACKAGE = "laravel-app-${version}.zip"
-                    
-                    // Create packages directory outside workspace
-                    env.PACKAGES_DIR = "${WORKSPACE}/../packages"
-                    env.DEPLOY_PACKAGE_PATH = "${PACKAGES_DIR}/${DEPLOY_PACKAGE}"
+                    env.DEPLOY_PACKAGE_PATH = "${env.PACKAGES_DIR}/${env.DEPLOY_PACKAGE}"
                     
                     sh '''
                         # Create packages directory outside workspace
@@ -95,6 +93,21 @@ pipeline {
         stage('Deploy with Ansible') {
             steps {
                 script {
+                    // Verify deployment package exists
+                    if (!env.DEPLOY_PACKAGE_PATH) {
+                        error("DEPLOY_PACKAGE_PATH is not set. Please ensure 'Create Deployment Package' stage completed successfully.")
+                    }
+                    
+                    // Verify package file exists
+                    def packageExists = sh(
+                        script: "test -f ${env.DEPLOY_PACKAGE_PATH}",
+                        returnStatus: true
+                    ) == 0
+                    
+                    if (!packageExists) {
+                        error("Deployment package not found at: ${env.DEPLOY_PACKAGE_PATH}")
+                    }
+                    
                     // Use Ansible Vault instead of passing secrets via command line
                     withCredentials([
                         string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
@@ -109,6 +122,7 @@ pipeline {
                             # Debug: Check if password is set (remove in production)
                             echo "Vault password is set: ${ANSIBLE_VAULT_PASSWORD:+YES}"
                             echo "Deployment environment: ${DEPLOY_ENV}"
+                            echo "Deployment package: ${DEPLOY_PACKAGE}"
                             echo "Deployment package path: ${DEPLOY_PACKAGE_PATH}"
                             ls -lh ${DEPLOY_PACKAGE_PATH} || echo "Package file not found!"
                             
@@ -128,14 +142,22 @@ pipeline {
         success {
             echo "Deployment successful to ${DEPLOY_ENV}!"
             // Optional: Clean up package file after successful deployment
-            // sh "rm -f ${DEPLOY_PACKAGE_PATH} || true"
+            script {
+                if (env.DEPLOY_PACKAGE_PATH) {
+                    sh "rm -f ${env.DEPLOY_PACKAGE_PATH} || true"
+                }
+            }
         }
         failure {
             echo "Deployment failed to ${DEPLOY_ENV}!"
         }
         always {
             // Optional: Clean up package file (uncomment if you want to remove after each build)
-            sh "rm -f ${DEPLOY_PACKAGE_PATH} || true"
+            script {
+                if (env.DEPLOY_PACKAGE_PATH) {
+                    sh "rm -f ${env.DEPLOY_PACKAGE_PATH} || true"
+                }
+            }
         }
     }
 }
