@@ -97,7 +97,7 @@ pipeline {
                     echo "Found Composer at: ${composerPath}"
                     
                     // Update PATH to include /usr/local/bin and other common locations
-                    def updatedPath = "/usr/local/bin:/opt/homebrew/bin:${env.PATH}"
+                    def updatedPath = "/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/php@8.2/bin:${env.PATH}"
                     
                     // Verify Composer works with updated PATH
                     sh """
