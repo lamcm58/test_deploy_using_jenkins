@@ -38,7 +38,57 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'composer install --no-interaction --prefer-dist --optimize-autoloader'
+                script {
+                    // Debug: Show environment info
+                    sh '''
+                        echo "=== Environment Debug Info ==="
+                        echo "PATH: $PATH"
+                        echo "USER: $USER"
+                        echo "HOME: $HOME"
+                        echo "PWD: $PWD"
+                        echo ""
+                        echo "=== Checking for Composer ==="
+                        which composer || echo "composer not in PATH"
+                        ls -la /usr/local/bin/composer 2>/dev/null || echo "/usr/local/bin/composer not found"
+                        ls -la /usr/bin/composer 2>/dev/null || echo "/usr/bin/composer not found"
+                        ls -la ~/.composer/vendor/bin/composer 2>/dev/null || echo "~/.composer/vendor/bin/composer not found"
+                        echo ""
+                    '''
+                    
+                    // Find Composer path
+                    def composerPath = sh(
+                        script: '''
+                            # Try to find composer in common locations
+                            if command -v composer &> /dev/null; then
+                                command -v composer
+                            elif [ -f /usr/local/bin/composer ]; then
+                                echo /usr/local/bin/composer
+                            elif [ -f /usr/bin/composer ]; then
+                                echo /usr/bin/composer
+                            elif [ -f ~/.composer/vendor/bin/composer ]; then
+                                echo ~/.composer/vendor/bin/composer
+                            elif [ -f ~/.config/composer/vendor/bin/composer ]; then
+                                echo ~/.config/composer/vendor/bin/composer
+                            else
+                                # Try to find it using which or whereis
+                                which composer 2>/dev/null || whereis -b composer 2>/dev/null | awk '{print $2}' | head -1
+                            fi
+                        ''',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (!composerPath || composerPath.isEmpty()) {
+                        error("Composer not found. Please ensure Composer is installed and accessible.")
+                    }
+                    
+                    echo "Found Composer at: ${composerPath}"
+                    
+                    // Verify Composer works
+                    sh "${composerPath} --version"
+                    
+                    // Install dependencies
+                    sh "${composerPath} install --no-interaction --prefer-dist --optimize-autoloader"
+                }
             }
         }
 
