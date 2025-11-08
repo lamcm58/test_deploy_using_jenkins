@@ -143,7 +143,7 @@ pipeline {
                             -x "*storage/framework/cache/*" \
                             -x "*storage/framework/sessions/*" \
                             -x "*storage/framework/views/*" \
-                            -x "*vendor/*/.git*" \
+                            -x "*vendor/*" \
                             -x "*.DS_Store*" \
                             -x "*Jenkinsfile*" \
                             -x "*ansible/*" \
