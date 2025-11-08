@@ -51,6 +51,8 @@ pipeline {
                                 echo /usr/bin/php
                             elif [ -f /opt/homebrew/bin/php ]; then
                                 echo /opt/homebrew/bin/php
+                            elif [ -f /usr/local/opt/php@8.2/bin/php ]; then
+                                echo /usr/local/opt/php@8.2/bin/php
                             else
                                 # Try to find it using which or whereis
                                 which php 2>/dev/null || whereis -b php 2>/dev/null | awk '{print $2}' | head -1
