@@ -31,7 +31,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
-                    git branch: 'deve', url: 'https://github.com/lamcm58/test_deploy_using_jenkins.git'
+                    git branch: 'develop', url: 'https://github.com/lamcm58/test_deploy_using_jenkins.git'
                 }
             }
         }
