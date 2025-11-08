@@ -1,0 +1,27 @@
+---
+# Non-sensitive variables for develop environment (EC2)
+app_url: http://ec2-13-229-150-173.ap-southeast-1.compute.amazonaws.com
+app_name: Laravel App
+app_env: local
+app_debug: "true"
+
+# Database configuration (sensitive values should be in vault.yml)
+db_connection: mysql
+db_host: localhost
+db_port: 3306
+# db_name, db_user, db_password should be in vault.yml
+
+# Cache and session
+cache_driver: file
+session_driver: file
+queue_connection: sync
+
+# Logging
+log_channel: stack
+
+# Mail configuration (sensitive values should be in vault.yml)
+mail_mailer: smtp
+mail_host: smtp.mailtrap.io
+mail_port: 2525
+# mail_username, mail_password should be in vault.yml
+
