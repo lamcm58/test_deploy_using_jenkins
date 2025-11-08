@@ -39,21 +39,32 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Debug: Show environment info
-                    sh '''
-                        echo "=== Environment Debug Info ==="
-                        echo "PATH: $PATH"
-                        echo "USER: $USER"
-                        echo "HOME: $HOME"
-                        echo "PWD: $PWD"
-                        echo ""
-                        echo "=== Checking for Composer ==="
-                        which composer || echo "composer not in PATH"
-                        ls -la /usr/local/bin/composer 2>/dev/null || echo "/usr/local/bin/composer not found"
-                        ls -la /usr/bin/composer 2>/dev/null || echo "/usr/bin/composer not found"
-                        ls -la ~/.composer/vendor/bin/composer 2>/dev/null || echo "~/.composer/vendor/bin/composer not found"
-                        echo ""
-                    '''
+                    // Find PHP path
+                    def phpPath = sh(
+                        script: '''
+                            # Try to find PHP in common locations
+                            if command -v php &> /dev/null; then
+                                command -v php
+                            elif [ -f /usr/local/bin/php ]; then
+                                echo /usr/local/bin/php
+                            elif [ -f /usr/bin/php ]; then
+                                echo /usr/bin/php
+                            elif [ -f /opt/homebrew/bin/php ]; then
+                                echo /opt/homebrew/bin/php
+                            else
+                                # Try to find it using which or whereis
+                                which php 2>/dev/null || whereis -b php 2>/dev/null | awk '{print $2}' | head -1
+                            fi
+                        ''',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (!phpPath || phpPath.isEmpty()) {
+                        error("PHP not found. Please ensure PHP is installed and accessible.")
+                    }
+                    
+                    echo "Found PHP at: ${phpPath}"
+                    sh "${phpPath} --version"
                     
                     // Find Composer path
                     def composerPath = sh(
@@ -83,18 +94,58 @@ pipeline {
                     
                     echo "Found Composer at: ${composerPath}"
                     
-                    // Verify Composer works
-                    sh "${composerPath} --version"
+                    // Update PATH to include /usr/local/bin and other common locations
+                    def updatedPath = "/usr/local/bin:/opt/homebrew/bin:${env.PATH}"
                     
-                    // Install dependencies
-                    sh "${composerPath} install --no-interaction --prefer-dist --optimize-autoloader"
+                    // Verify Composer works with updated PATH
+                    sh """
+                        export PATH="${updatedPath}"
+                        ${composerPath} --version
+                    """
+                    
+                    // Install dependencies with updated PATH
+                    sh """
+                        export PATH="${updatedPath}"
+                        ${composerPath} install --no-interaction --prefer-dist --optimize-autoloader
+                    """
                 }
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'php artisan test'
+                script {
+                    // Find PHP path (same as in Install Dependencies)
+                    def phpPath = sh(
+                        script: '''
+                            if command -v php &> /dev/null; then
+                                command -v php
+                            elif [ -f /usr/local/bin/php ]; then
+                                echo /usr/local/bin/php
+                            elif [ -f /usr/bin/php ]; then
+                                echo /usr/bin/php
+                            elif [ -f /opt/homebrew/bin/php ]; then
+                                echo /opt/homebrew/bin/php
+                            else
+                                which php 2>/dev/null || whereis -b php 2>/dev/null | awk '{print $2}' | head -1
+                            fi
+                        ''',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (!phpPath || phpPath.isEmpty()) {
+                        error("PHP not found. Please ensure PHP is installed and accessible.")
+                    }
+                    
+                    // Update PATH
+                    def updatedPath = "/usr/local/bin:/opt/homebrew/bin:${env.PATH}"
+                    
+                    // Run tests with updated PATH
+                    sh """
+                        export PATH="${updatedPath}"
+                        ${phpPath} artisan test
+                    """
+                }
             }
         }
 
