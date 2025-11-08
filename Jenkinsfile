@@ -128,8 +128,8 @@ pipeline {
                                 echo /usr/bin/php
                             elif [ -f /opt/homebrew/bin/php ]; then
                                 echo /opt/homebrew/bin/php
-                            elif [ -f ~/.config/composer/vendor/bin/composer ]; then
-                                echo ~/.config/composer/vendor/bin/composer
+                            elif [ -f /usr/local/opt/php@8.2/bin/php ]; then
+                                echo /usr/local/opt/php@8.2/bin/php
                             else
                                 which php 2>/dev/null || whereis -b php 2>/dev/null | awk '{print $2}' | head -1
                             fi
