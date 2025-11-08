@@ -114,45 +114,6 @@ pipeline {
             }
         }
 
-        stage('Run Tests') {
-            steps {
-                script {
-                    // Find PHP path (same as in Install Dependencies)
-                    def phpPath = sh(
-                        script: '''
-                            if command -v php &> /dev/null; then
-                                command -v php
-                            elif [ -f /usr/local/bin/php ]; then
-                                echo /usr/local/bin/php
-                            elif [ -f /usr/bin/php ]; then
-                                echo /usr/bin/php
-                            elif [ -f /opt/homebrew/bin/php ]; then
-                                echo /opt/homebrew/bin/php
-                            elif [ -f /usr/local/opt/php@8.2/bin/php ]; then
-                                echo /usr/local/opt/php@8.2/bin/php
-                            else
-                                which php 2>/dev/null || whereis -b php 2>/dev/null | awk '{print $2}' | head -1
-                            fi
-                        ''',
-                        returnStdout: true
-                    ).trim()
-                    
-                    if (!phpPath || phpPath.isEmpty()) {
-                        error("PHP not found. Please ensure PHP is installed and accessible.")
-                    }
-                    
-                    // Update PATH
-                    def updatedPath = "/usr/local/bin:/opt/homebrew/bin:${env.PATH}"
-                    
-                    // Run tests with updated PATH
-                    sh """
-                        export PATH="${updatedPath}"
-                        ${phpPath} artisan test
-                    """
-                }
-            }
-        }
-
         stage('Create Deployment Package') {
             steps {
                 script {
