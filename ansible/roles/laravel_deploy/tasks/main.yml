@@ -63,7 +63,12 @@
 - name: Display backup information
   debug:
     msg: "Backup created: {{ backup_result.stdout }}"
-  when: backup_result.stdout != "no_backup" and backup_result.stdout != ""
+  when: 
+    - backup_result is defined
+    - backup_result is not skipped
+    - backup_result.stdout is defined
+    - backup_result.stdout != "no_backup"
+    - backup_result.stdout | length > 0
 
 - name: Copy deployment package to server
   copy:
