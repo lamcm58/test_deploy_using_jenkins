@@ -196,33 +196,47 @@ pipeline {
         stage('Deploy with Ansible') {
             steps {
                 script {
-                    // Find ansible-playbook path
-                    def ansiblePlaybookPath = sh(
+                    // Find ansible-playbook - check if it's available as command first
+                    def ansiblePlaybookAvailable = sh(
                         script: '''
-                            # Try to find ansible-playbook in common locations
-                            if command -v ansible-playbook &> /dev/null; then
-                                command -v ansible-playbook
-                            elif [ -f /usr/local/bin/ansible-playbook ]; then
-                                echo /usr/local/bin/ansible-playbook
-                            elif [ -f /usr/bin/ansible-playbook ]; then
-                                echo /usr/bin/ansible-playbook
-                            elif [ -f /opt/homebrew/bin/ansible-playbook ]; then
-                                echo /opt/homebrew/bin/ansible-playbook
-                            elif [ -f ~/.local/bin/ansible-playbook ]; then
-                                echo ~/.local/bin/ansible-playbook
-                            else
-                                # Try to find it using which or whereis
-                                which ansible-playbook 2>/dev/null || whereis -b ansible-playbook 2>/dev/null | awk '{print $2}' | head -1
-                            fi
+                            export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/php@8.2/bin:~/.local/bin:${PATH}"
+                            command -v ansible-playbook &> /dev/null && echo "yes" || echo "no"
                         ''',
                         returnStdout: true
                     ).trim()
                     
-                    if (!ansiblePlaybookPath || ansiblePlaybookPath.isEmpty()) {
-                        error("ansible-playbook not found. Please ensure Ansible is installed. You can install it with: pip3 install ansible")
+                    // If available as command, use it directly; otherwise find the path
+                    def ansiblePlaybookPath = ""
+                    if (ansiblePlaybookAvailable == "yes") {
+                        ansiblePlaybookPath = "ansible-playbook"
+                        echo "Found ansible-playbook as command in PATH"
+                    } else {
+                        ansiblePlaybookPath = sh(
+                            script: '''
+                                export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/php@8.2/bin:~/.local/bin:${PATH}"
+                                # Try to find ansible-playbook in common locations
+                                if [ -f /usr/local/bin/ansible-playbook ]; then
+                                    echo /usr/local/bin/ansible-playbook
+                                elif [ -f /usr/bin/ansible-playbook ]; then
+                                    echo /usr/bin/ansible-playbook
+                                elif [ -f /opt/homebrew/bin/ansible-playbook ]; then
+                                    echo /opt/homebrew/bin/ansible-playbook
+                                elif [ -f ~/.local/bin/ansible-playbook ]; then
+                                    echo ~/.local/bin/ansible-playbook
+                                else
+                                    # Try to find it using which or whereis
+                                    which ansible-playbook 2>/dev/null || whereis -b ansible-playbook 2>/dev/null | awk '{print $2}' | head -1 || echo ""
+                                fi
+                            ''',
+                            returnStdout: true
+                        ).trim()
+                        
+                        if (!ansiblePlaybookPath || ansiblePlaybookPath.isEmpty()) {
+                            error("ansible-playbook not found. Please ensure Ansible is installed. You can install it with: pip3 install ansible")
+                        }
+                        
+                        echo "Found ansible-playbook at: ${ansiblePlaybookPath}"
                     }
-                    
-                    echo "Found ansible-playbook at: ${ansiblePlaybookPath}"
                     
                     // Verify deployment package exists
                     if (!env.DEPLOY_PACKAGE_PATH) {
@@ -272,14 +286,30 @@ pipeline {
                                 exit 1
                             fi
                             
+                            # Verify ansible-playbook is available
+                            # If it's a command name (not a path), check if it's in PATH
+                            if [[ "${env.ANSIBLE_PLAYBOOK_PATH}" == *"/"* ]]; then
+                                # It's a path, check if file exists
+                                if [ ! -f "${env.ANSIBLE_PLAYBOOK_PATH}" ]; then
+                                    echo "ERROR: ansible-playbook file not found at: ${env.ANSIBLE_PLAYBOOK_PATH}"
+                                    exit 1
+                                fi
+                            else
+                                # It's a command name, check if it's available in PATH
+                                if ! command -v "${env.ANSIBLE_PLAYBOOK_PATH}" &> /dev/null; then
+                                    echo "ERROR: ansible-playbook command not found: ${env.ANSIBLE_PLAYBOOK_PATH}"
+                                    exit 1
+                                fi
+                            fi
+                            
                             # Test ansible-playbook command
-                            "${env.ANSIBLE_PLAYBOOK_PATH}" --version || {
+                            ${env.ANSIBLE_PLAYBOOK_PATH} --version || {
                                 echo "ERROR: ansible-playbook command failed!"
                                 exit 1
                             }
                             
                             # Run ansible-playbook with vault password and package path
-                            "${env.ANSIBLE_PLAYBOOK_PATH}" -i ansible/inventory ansible/deploy.yml \\
+                            ${env.ANSIBLE_PLAYBOOK_PATH} -i ansible/inventory ansible/deploy.yml \\
                                 --vault-password-file ansible/vault_password.sh \\
                                 --extra-vars "env=${DEPLOY_ENV} deploy_package=${env.DEPLOY_PACKAGE} deploy_package_path=${env.DEPLOY_PACKAGE_PATH}" \\
                                 --limit ${DEPLOY_ENV}
