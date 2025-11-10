@@ -1,5 +1,5 @@
 [develop]
-deve-server ansible_host=192.168.79.100 ansible_user=jenkins
+deve-server ansible_host=ec2-13-229-150-173.ap-southeast-1.compute.amazonaws.com ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/ec2-key.pem
 
 [staging]
 staging-server ansible_host=192.168.79.101 ansible_user=jenkins

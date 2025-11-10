@@ -170,6 +170,19 @@
     mode: '0640'
   become: yes
 
+- name: Check if vendor directory exists
+  stat:
+    path: "{{ deployment_path }}/vendor"
+  register: vendor_dir
+
+- name: Install composer dependencies (only if vendor not found)
+  environment:
+    COMPOSER_ALLOW_SUPERUSER: "1"
+    COMPOSER_NO_INTERACTION: "1"
+  command: composer install --no-dev --no-progress --prefer-dist --optimize-autoloader chdir={{ deployment_path }}
+  when: not vendor_dir.stat.exists
+  ignore_errors: yes
+
 - name: Check if APP_KEY exists and has value in .env
   shell: |
     if grep -qE "^APP_KEY=" {{ deployment_path }}/.env; then
@@ -196,19 +209,6 @@
 - name: Display key generation result
   debug:
     msg: "{{ 'APP_KEY generated successfully' if (app_key_check.stdout == 'empty' or app_key_check.stdout == 'not_found') else 'APP_KEY already exists, skipping generation' }}"
-
-- name: Check if vendor directory exists
-  stat:
-    path: "{{ deployment_path }}/vendor"
-  register: vendor_dir
-
-- name: Install composer dependencies (only if vendor not found)
-  environment:
-    COMPOSER_ALLOW_SUPERUSER: "1"
-    COMPOSER_NO_INTERACTION: "1"
-  command: composer install --no-dev --no-progress --prefer-dist --optimize-autoloader chdir={{ deployment_path }}
-  when: not vendor_dir.stat.exists
-  ignore_errors: yes
 
 - name: Deploy new version (with rollback on failure)
   block:
