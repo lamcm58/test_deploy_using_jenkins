@@ -225,7 +225,6 @@ pipeline {
                     }
                     
                     echo "Found ansible-playbook at: ${ansiblePlaybookPath}"
-                    sh "${ansiblePlaybookPath} --version"
                     
                     // Verify deployment package exists
                     if (!env.DEPLOY_PACKAGE_PATH) {
