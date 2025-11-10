@@ -272,17 +272,6 @@ pipeline {
                                 exit 1
                             fi
                             
-                            # Verify ansible-playbook exists and is executable
-                            if [ ! -f "${env.ANSIBLE_PLAYBOOK_PATH}" ]; then
-                                # If not a file, check if it's a command in PATH
-                                command -v "${env.ANSIBLE_PLAYBOOK_PATH}"
-                                
-                                if ! command -v "${env.ANSIBLE_PLAYBOOK_PATH}" &> /dev/null; then
-                                    echo "ERROR: ansible-playbook not found at: ${env.ANSIBLE_PLAYBOOK_PATH}"
-                                    exit 1
-                                fi
-                            fi
-                            
                             # Test ansible-playbook command
                             "${env.ANSIBLE_PLAYBOOK_PATH}" --version || {
                                 echo "ERROR: ansible-playbook command failed!"
