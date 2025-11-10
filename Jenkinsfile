@@ -66,7 +66,6 @@ pipeline {
                     }
                     
                     echo "Found PHP at: ${phpPath}"
-                    sh "${phpPath} --version"
                     
                     // Find Composer path
                     def composerPath = sh(
@@ -102,7 +101,6 @@ pipeline {
                     // Verify Composer works with updated PATH
                     sh """
                         export PATH="${updatedPath}"
-                        ${composerPath} --version
                     """
                     
                     // Install dependencies with updated PATH
@@ -277,6 +275,8 @@ pipeline {
                             # Verify ansible-playbook exists and is executable
                             if [ ! -f "${env.ANSIBLE_PLAYBOOK_PATH}" ]; then
                                 # If not a file, check if it's a command in PATH
+                                command -v "${env.ANSIBLE_PLAYBOOK_PATH}"
+                                
                                 if ! command -v "${env.ANSIBLE_PLAYBOOK_PATH}" &> /dev/null; then
                                     echo "ERROR: ansible-playbook not found at: ${env.ANSIBLE_PLAYBOOK_PATH}"
                                     exit 1
