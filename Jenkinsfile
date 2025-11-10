@@ -244,6 +244,9 @@ pipeline {
                     // Update PATH to include common locations
                     def updatedPath = "/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/php@8.2/bin:~/.local/bin:${env.PATH}"
                     
+                    // Store ansible-playbook path in environment variable for shell script
+                    env.ANSIBLE_PLAYBOOK_PATH = ansiblePlaybookPath
+                    
                     // Use Ansible Vault instead of passing secrets via command line
                     withCredentials([
                         string(credentialsId: 'ansible-vault-password', variable: 'VAULT_PASS')
@@ -262,10 +265,32 @@ pipeline {
                             echo "Deployment environment: ${DEPLOY_ENV}"
                             echo "Deployment package: ${env.DEPLOY_PACKAGE}"
                             echo "Deployment package path: ${env.DEPLOY_PACKAGE_PATH}"
+                            echo "Ansible-playbook path: ${env.ANSIBLE_PLAYBOOK_PATH}"
                             ls -lh ${env.DEPLOY_PACKAGE_PATH} || echo "Package file not found!"
                             
+                            # Verify ansible-playbook path is set
+                            if [ -z "${env.ANSIBLE_PLAYBOOK_PATH}" ]; then
+                                echo "ERROR: ansible-playbook path is empty!"
+                                exit 1
+                            fi
+                            
+                            # Verify ansible-playbook exists and is executable
+                            if [ ! -f "${env.ANSIBLE_PLAYBOOK_PATH}" ]; then
+                                # If not a file, check if it's a command in PATH
+                                if ! command -v "${env.ANSIBLE_PLAYBOOK_PATH}" &> /dev/null; then
+                                    echo "ERROR: ansible-playbook not found at: ${env.ANSIBLE_PLAYBOOK_PATH}"
+                                    exit 1
+                                fi
+                            fi
+                            
+                            # Test ansible-playbook command
+                            "${env.ANSIBLE_PLAYBOOK_PATH}" --version || {
+                                echo "ERROR: ansible-playbook command failed!"
+                                exit 1
+                            }
+                            
                             # Run ansible-playbook with vault password and package path
-                            ${ansiblePlaybookPath} -i ansible/inventory ansible/deploy.yml \\
+                            "${env.ANSIBLE_PLAYBOOK_PATH}" -i ansible/inventory ansible/deploy.yml \\
                                 --vault-password-file ansible/vault_password.sh \\
                                 --extra-vars "env=${DEPLOY_ENV} deploy_package=${env.DEPLOY_PACKAGE} deploy_package_path=${env.DEPLOY_PACKAGE_PATH}" \\
                                 --limit ${DEPLOY_ENV}
