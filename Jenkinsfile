@@ -287,7 +287,9 @@ pipeline {
                             echo "Deployment package: ${env.DEPLOY_PACKAGE}"
                             echo "Deployment package path: ${env.DEPLOY_PACKAGE_PATH}"
                             echo "Ansible-playbook path: ${env.ANSIBLE_PLAYBOOK_PATH}"
-                            echo "Current PATH: ${PATH}"
+                            echo "Current PATH: \$PATH"
+                            echo "Current user: \$(whoami)"
+                            echo "Current working directory: \$(pwd)"
                             ls -lh ${env.DEPLOY_PACKAGE_PATH} || echo "Package file not found!"
                             
                             # Verify ansible-playbook path is set
@@ -307,20 +309,20 @@ pipeline {
                                 ANSIBLE_CMD="${env.ANSIBLE_PLAYBOOK_PATH}"
                             # Check if it's a command name (no slashes) and available in PATH
                             elif [[ "${env.ANSIBLE_PLAYBOOK_PATH}" != *"/"* ]]; then
-                                ACTUAL_PATH=$(command -v "${env.ANSIBLE_PLAYBOOK_PATH}" 2>/dev/null || echo "")
-                                if [ -n "${ACTUAL_PATH}" ]; then
-                                    echo "✓ Command found in PATH: ${ACTUAL_PATH}"
-                                    ANSIBLE_CMD="${ACTUAL_PATH}"
+                                ACTUAL_PATH=\$(command -v "${env.ANSIBLE_PLAYBOOK_PATH}" 2>/dev/null || echo "")
+                                if [ -n "\${ACTUAL_PATH}" ]; then
+                                    echo "✓ Command found in PATH: \${ACTUAL_PATH}"
+                                    ANSIBLE_CMD="\${ACTUAL_PATH}"
                                 fi
                             fi
                             
                             # If still not found, try to find ansible-playbook in PATH
-                            if [ -z "${ANSIBLE_CMD}" ]; then
+                            if [ -z "\${ANSIBLE_CMD}" ]; then
                                 echo "✗ Path from env not valid, checking if ansible-playbook is in PATH..."
-                                ACTUAL_PATH=$(command -v ansible-playbook 2>/dev/null || echo "")
-                                if [ -n "${ACTUAL_PATH}" ]; then
-                                    echo "✓ ansible-playbook found in PATH: ${ACTUAL_PATH}"
-                                    ANSIBLE_CMD="${ACTUAL_PATH}"
+                                ACTUAL_PATH=\$(command -v ansible-playbook 2>/dev/null || echo "")
+                                if [ -n "\${ACTUAL_PATH}" ]; then
+                                    echo "✓ ansible-playbook found in PATH: \${ACTUAL_PATH}"
+                                    ANSIBLE_CMD="\${ACTUAL_PATH}"
                                 else
                                     echo "ERROR: ansible-playbook not found at: ${env.ANSIBLE_PLAYBOOK_PATH}"
                                     echo "Trying to find ansible-playbook..."
@@ -331,9 +333,9 @@ pipeline {
                             fi
                             
                             # Test ansible-playbook command
-                            echo "Testing ansible-playbook with: ${ANSIBLE_CMD}"
-                            ${ANSIBLE_CMD} --version || {
-                                echo "ERROR: ansible-playbook command failed with path: ${ANSIBLE_CMD}"
+                            echo "Testing ansible-playbook with: \${ANSIBLE_CMD}"
+                            \${ANSIBLE_CMD} --version || {
+                                echo "ERROR: ansible-playbook command failed with path: \${ANSIBLE_CMD}"
                                 echo "Trying alternative: ansible-playbook --version"
                                 if ansible-playbook --version; then
                                     ANSIBLE_CMD="ansible-playbook"
@@ -345,7 +347,7 @@ pipeline {
                             }
                             
                             # Run ansible-playbook with vault password and package path
-                            ${ANSIBLE_CMD} -i ansible/inventory ansible/deploy.yml \\
+                            \${ANSIBLE_CMD} -i ansible/inventory ansible/deploy.yml \\
                                 --vault-password-file ansible/vault_password.sh \\
                                 --extra-vars "env=${DEPLOY_ENV} deploy_package=${env.DEPLOY_PACKAGE} deploy_package_path=${env.DEPLOY_PACKAGE_PATH}" \\
                                 --limit ${DEPLOY_ENV}
