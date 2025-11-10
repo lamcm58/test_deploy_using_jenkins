@@ -288,8 +288,6 @@ pipeline {
                             echo "Deployment package path: ${env.DEPLOY_PACKAGE_PATH}"
                             echo "Ansible-playbook path: ${env.ANSIBLE_PLAYBOOK_PATH}"
                             echo "Current PATH: ${PATH}"
-                            echo "Current user: $(whoami)"
-                            echo "Current working directory: $(pwd)"
                             ls -lh ${env.DEPLOY_PACKAGE_PATH} || echo "Package file not found!"
                             
                             # Verify ansible-playbook path is set
